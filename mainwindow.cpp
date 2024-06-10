@@ -23,7 +23,7 @@ MainWindow::MainWindow(QWidget *parent)
 
     QPushButton *button = new QPushButton();
     button->setText("+");
-    button->setFixedSize(25, 25);
+    button->setFixedSize(20, 20);
     button->setStyleSheet("QPushButton {""    background-color: #f0f0f0;""    border: 1px solid #c0c0c0;""    border-radius: 5px;""}""QPushButton:hover {""    background-color: #e0e0e0;" "}");
     QHBoxLayout *cornerLayout = new QHBoxLayout();
     cornerLayout->setContentsMargins(0, 0, 0, 0);
@@ -173,7 +173,6 @@ void MainWindow::plotgraph(const vector<double> &originalStream, const vector<do
 
 MainWindow::~MainWindow()
 {
-    newWindow->close(); //werkt nie
     for (TabPage* tab : tabPages) {
         delete tab;
     }
