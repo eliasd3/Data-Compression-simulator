@@ -368,9 +368,17 @@ void TabPage::onRunButtonClicked()
 
     if(this->index==0){
         QMessageBox msgBox;
-        msgBox.setText("Select a column and file first");
+        QString message = QString("Select a column and file first for tab %2").arg(this->tabNumber);
+        msgBox.setText(message);
         msgBox.exec();
-    } else if (!running) {
+        ui->runButton->setChecked(false);
+    } else if (ui->columnChoice_2->currentText().isEmpty()){
+        QMessageBox msgBox;
+        QString message = QString("Select an algorithm first for tab %2").arg(this->tabNumber);
+        msgBox.setText(message);
+        msgBox.exec();
+        ui->runButton->setChecked(false);
+    } else if (!running){
         running = true;
         qRegisterMetaType<std::vector<double>>("std::vector<double>");
         
