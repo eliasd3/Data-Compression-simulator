@@ -79,7 +79,6 @@ vector<double> compressor::deltaEncodeNext(const vector<double>& input) {
 
         auto end_time = std::chrono::system_clock::now();
         durationCompression += std::chrono::duration_cast<std::chrono::nanoseconds>(end_time - start_time);
-
         return deltaEncoded;// or any other appropriate value
     }
 

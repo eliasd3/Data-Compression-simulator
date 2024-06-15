@@ -1,10 +1,11 @@
-    #include "mythread.h"
+#include "mythread.h"
 #include <qobject.h>
 #include <QtCore>
 #include <qdebug.h>
 #include "compressor.h"
 #include "mytabpage.h"
 #include "/home/eliasderuytter/Documents/sprintz/sprintz.h"
+// #include "sprintz/sprintz.h"
 #include <zlib.h>
 #include <chrono>
 #include <zstd.h>
@@ -161,13 +162,11 @@ void Thread::newValuePredicted(int err)
     emit deltaCompressedDataUpdate(tab->getOriginalData(), compressedStream, vector<double>() ,tab->getTabNumber());
 }
 
-void Thread::fireCompressedDataUpdate(int i)
+void Thread::fireCompressedDataUpdate(int i) //i is amount of compressed values already compressed
 {
+    compressedData.clear();
     for (int64_t j = 0; j < i; ++j) {
-
-
         string dataAsString = std::to_string(fireCompressedData[j]);
-
         // Append the string to the compressedData vector
         compressedData.push_back(dataAsString);
     }
@@ -175,6 +174,11 @@ void Thread::fireCompressedDataUpdate(int i)
     // qDebug() << compressedData;
 
     emit fireDataUpdate(compressedData,tab->getTabNumber());
+
+    //todooo
+    qDebug() << (double)compressedStream.size() << "  " << compressedData.size() << " " <<compressedData <<"-------------------;";
+    tab->setCompressionRatio(((double)compressedData.size())/((double)compressedStream.size()));
+    emit ratiosUpdates(tab->getCompressionRatio(),tab->getTabNumber());
 }
 
 TabPage *Thread::getTab() const
@@ -185,6 +189,13 @@ TabPage *Thread::getTab() const
 void Thread::setHowManySleepsFire(int newHowManySleepsFire)
 {
     delayedTime += newHowManySleepsFire;
+
+    end_time_sprintz = std::chrono::system_clock::now();
+    auto durationCompression = std::chrono::duration_cast<std::chrono::microseconds>(end_time_sprintz - start_time_sprintz).count();
+    durationCompression = durationCompression - delayedTime;
+    // qDebug() << "Compression time: " << durationCompression << " microseconds";
+    tab->getWidget()->getCompressTime()->setText(QString::number(durationCompression));
+    tab->getWidget()->getCompressTime()->update();
 }
 
 Thread::Thread(TabPage *tab)
@@ -213,6 +224,7 @@ void Thread::run(){
 
             //DELTA:
             vector<double> encodedValues = c->deltaEncodeNext(decimatedStream);
+            tab->getWidget()->getCompressTime()->setText(QString::number((int) c->getDurationCompression().count()/1000));
 
 
             if (isnan(encodedValues.back())) {
@@ -281,16 +293,30 @@ void Thread::run(){
                 tab->getWidget()->getCompressTime()->setText(QString::number((int) c->getDurationCompression().count()/1000));
 
                 tab->setDecompressedData(deltaDecodedValues);
-
-
+                totalBits = 0;
                 for (const string& str : HuffmanEncodedValues) {
                     totalBits += str.size(); // Add the size of each string
                 }
+                tab->setCompressionRatio(((double)totalBits)/((double)(tab->getOriginalData().size()*16))); //every element 16 bits
+
+                emit ratiosUpdates(tab->getCompressionRatio(),tab->getTabNumber());
 
                 end=true;
+
             } else {
                 //HUFFMAN
                 HuffmanEncodedValues = c->HuffmanEncodeNext(encodedValues,tab->getDigitsAfterDecimal());
+                tab->getWidget()->getCompressTime()->setText(QString::number((int) c->getDurationCompression().count()/1000));
+                totalBits = 0;
+                int encodedSize = 0;
+                for (const string& str : HuffmanEncodedValues) {
+                    totalBits += str.size(); // Add the size of each string
+                    if(str.size() != 0){
+                        encodedSize++;
+                    }
+                }
+                tab->setCompressionRatio(((double)totalBits)/((double)(encodedSize*16))); //every element 16 bits
+                emit ratiosUpdates(tab->getCompressionRatio(),tab->getTabNumber());
             }
 
 
@@ -301,9 +327,7 @@ void Thread::run(){
             // For example:
             emit HuffmanDataUpdate(tab->getOriginalData(), HuffmanEncodedValues, encodedValues, deltaDecodedValues,tab->getTabNumber());
             // qDebug() << tab->getOriginalData().size() << "testttttttttttttttttttttttttttttttttttttttttttttttttttttttt";
-            tab->setCompressionRatio(((double)totalBits)/((double)(tab->getOriginalData().size()*16))); //every element 16 bits
 
-            emit ratiosUpdates(tab->getCompressionRatio(),tab->getTabNumber());
 
         }
     } else if (tab->getAlgorithmName() == QString("FIRE - Sprintz")){
@@ -321,16 +345,17 @@ void Thread::run(){
 
         // int16_t compressed_data[input_size];
         delete[] fireCompressedData;
-        fireCompressedData = new int16_t[input_size];
+        fireCompressedData = new int16_t[input_size];//input_size
         memset(fireCompressedData, 0, sizeof(int16_t) * input_size);
 
-        auto start_time = std::chrono::system_clock::now();
+        start_time_sprintz = std::chrono::system_clock::now();
 
         // int64_t size = sprintz_compress_xff_16b(&input_data[0], input_size, &compressed_data[0], 1,true, this);
         int64_t size = sprintz_compress_xff_16b(&input_data[0], input_size, fireCompressedData, 1,true, this);
 
-        auto end_time = std::chrono::system_clock::now();
-        auto durationCompression = std::chrono::duration_cast<std::chrono::microseconds>(end_time - start_time).count();
+
+        end_time_sprintz = std::chrono::system_clock::now();
+        auto durationCompression = std::chrono::duration_cast<std::chrono::microseconds>(end_time_sprintz - start_time_sprintz).count();
         durationCompression = durationCompression - delayedTime;
         qDebug() << "Compression time: " << durationCompression << " microseconds";
         tab->getWidget()->getCompressTime()->setText(QString::number(durationCompression));
@@ -400,12 +425,12 @@ void Thread::run(){
         fireCompressedData = new int16_t[input_size];
         memset(fireCompressedData, 0, sizeof(int16_t) * input_size);
 
-        auto start_time = std::chrono::system_clock::now();
+        start_time_sprintz = std::chrono::system_clock::now();
         // int64_t size = sprintz_compress_xff_16b(&input_data[0], input_size, &compressed_data[0], 1,true, this);
         int64_t size = sprintz_compress_delta_16b(&input_data[0], input_size, fireCompressedData, 1, true, this);
 
-        auto end_time = std::chrono::system_clock::now();
-        auto durationCompression = std::chrono::duration_cast<std::chrono::microseconds>(end_time - start_time).count();
+        end_time_sprintz = std::chrono::system_clock::now();
+        auto durationCompression = std::chrono::duration_cast<std::chrono::microseconds>(end_time_sprintz - start_time_sprintz).count();
         durationCompression = durationCompression - delayedTime;
         qDebug() << "Compression time: " << durationCompression << " microseconds";
         tab->getWidget()->getCompressTime()->setText(QString::number(durationCompression));

@@ -23,6 +23,8 @@ private:
     vector<double> compressedStream = vector<double>();
     vector<string> compressedData;
     int delayedTime = 0;
+    chrono::time_point<std::chrono::system_clock> start_time_sprintz = std::chrono::time_point<std::chrono::system_clock>::min();
+    chrono::time_point<std::chrono::system_clock> end_time_sprintz = std::chrono::time_point<std::chrono::system_clock>::min();
 
 
 

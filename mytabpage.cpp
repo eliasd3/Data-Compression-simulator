@@ -1,5 +1,5 @@
 #include "mytabpage.h"
-#include "ui_tabpage.h"
+#include "ui_mytabpage.h"
 #include <qobject.h>
 #include "iostream"
 #include "QFileDialog"
